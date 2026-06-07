@@ -25,7 +25,8 @@ from typing import List, Optional, Tuple, Dict
 
 # Lazy import for fasttext
 _fasttext = None
-_model = None
+_model = None  # Module-level model cache (thread-safe)
+_model_lock = __import__('threading').Lock()
 
 # Model URLs
 FASTTEXT_MODEL_URL = "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin"
@@ -188,8 +189,15 @@ class LanguageDetector:
                     f"Set auto_download=True or download manually from {FASTTEXT_MODEL_COMPRESSED_URL}"
                 )
 
-        # Load the model
-        self._model = _fasttext.load_model(str(self._model_path))
+        # Use module-level model cache to avoid reloading the same model
+        global _model
+        model_key = str(self._model_path)
+        with _model_lock:
+            if _model is None or getattr(_model, '_bnlp_path', None) != model_key:
+                loaded = _fasttext.load_model(model_key)
+                loaded._bnlp_path = model_key  # type: ignore[attr-defined]
+                _model = loaded
+            self._model = _model
 
     def detect(self, text: str, top_k: int = 1) -> DetectionResult:
         """Detect the language of the given text.

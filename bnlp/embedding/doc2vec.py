@@ -6,15 +6,22 @@ import glob
 import gensim
 import numpy as np
 from tqdm import tqdm
-from scipy import spatial
-from typing import Callable, List
+from typing import Callable, List, Optional
 from gensim.models.doc2vec import Doc2Vec
 
 from bnlp.tokenizer.basic import BasicTokenizer
 from bnlp.utils.downloader import download_model
 from bnlp.utils.config import ModelTypeEnum
 
-default_tokenizer = BasicTokenizer()
+# Lazy default tokenizer — avoids creating a BasicTokenizer at import time
+default_tokenizer: Optional[BasicTokenizer] = None
+
+
+def _get_default_tokenizer() -> BasicTokenizer:
+    global default_tokenizer
+    if default_tokenizer is None:
+        default_tokenizer = BasicTokenizer()
+    return default_tokenizer
 
 
 def _read_corpus(files: List[str], tokenizer=None):
@@ -24,7 +31,7 @@ def _read_corpus(files: List[str], tokenizer=None):
             if tokenizer:
                 tokens = tokenizer(text)
             else:
-                tokens = default_tokenizer.tokenize(text)
+                tokens = _get_default_tokenizer().tokenize(text)
             yield gensim.models.doc2vec.TaggedDocument(tokens, [i])
 
 
@@ -50,11 +57,10 @@ class BengaliDoc2vec:
         Returns:
             ndarray: generated vector
         """
-        
         if self.tokenizer:
             tokens = self.tokenizer(document)
         else:
-            tokens = default_tokenizer.tokenize(document)
+            tokens = _get_default_tokenizer().tokenize(document)
 
         vector = self.model.infer_vector(tokens)
 
@@ -74,15 +80,21 @@ class BengaliDoc2vec:
             document_1_tokens = self.tokenizer(document_1)
             document_2_tokens = self.tokenizer(document_2)
         else:
-            document_1_tokens = default_tokenizer.tokenize(document_1)
-            document_2_tokens = default_tokenizer.tokenize(document_2)
+            tok = _get_default_tokenizer()
+            document_1_tokens = tok.tokenize(document_1)
+            document_2_tokens = tok.tokenize(document_2)
 
         document_1_vector = self.model.infer_vector(document_1_tokens)
         document_2_vector = self.model.infer_vector(document_2_tokens)
 
-        similarity = round(
-            1 - spatial.distance.cosine(document_1_vector, document_2_vector), 2
-        )
+        # Vectorized cosine similarity (avoids scipy overhead)
+        dot = np.dot(document_1_vector, document_2_vector)
+        norm1 = np.linalg.norm(document_1_vector)
+        norm2 = np.linalg.norm(document_2_vector)
+        if norm1 == 0 or norm2 == 0:
+            similarity = 0.0
+        else:
+            similarity = round(float(dot / (norm1 * norm2)), 2)
 
         return similarity
 

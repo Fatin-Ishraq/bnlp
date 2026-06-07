@@ -13,6 +13,9 @@ from bnlp.utils.utils import load_pickle_model
 from bnlp.utils.utils import features
 from bnlp.utils.downloader import download_model
 
+# Precomputed frozenset for O(1) punctuation membership testing
+_PUNCTUATION_SET = frozenset(string.punctuation + "।")
+
 class BengaliNER:
     def __init__(self, model_path: str = "", tokenizer: Callable = None):
         if not model_path:
@@ -21,11 +24,9 @@ class BengaliNER:
         self.tokenizer = tokenizer if tokenizer else BasicTokenizer()
 
     def tag(self, text: str) -> List[Tuple[str, str]]:
-        punctuations = string.punctuation + "।"
-
         tokens = self.tokenizer(text)
-        # remove punctuation from tokens
-        tokens = [x for x in tokens if x not in punctuations]
+        # remove punctuation from tokens — O(1) per token via frozenset
+        tokens = [x for x in tokens if x not in _PUNCTUATION_SET]
 
         sentence_features = [
             features(tokens, index) for index in range(len(tokens))

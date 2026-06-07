@@ -30,13 +30,13 @@ setuptools.setup(
         "ftfy>=6.2.0",
         "emoji>=2.0.0",
         "requests",
-        "symspellpy>=6.7.0",
     ],
     extras_require={
         "fasttext": ["fasttext>=0.9.2"],
         "spellcheck": ["symspellpy>=6.7.0"],
         "langdetect": ["fasttext>=0.9.2"],
-        "all": ["symspellpy>=6.7.0", "fasttext>=0.9.2"],
+        "rust": ["maturin>=1.0,<2.0"],
+        "all": ["symspellpy>=6.7.0", "fasttext>=0.9.2", "maturin>=1.0,<2.0"],
     },
     entry_points={
         "console_scripts": [

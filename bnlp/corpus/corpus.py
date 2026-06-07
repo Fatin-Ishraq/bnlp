@@ -13,14 +13,18 @@ Available Corpus:
 
 """
 
-from typing import List
+from typing import List, Set
 from bnlp.tokenizer.basic import BasicTokenizer
 from ._stopwords import bengali_stopwords
 
 class BengaliCorpus:
     punctuations: str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~।ঃ"
+    # Precomputed frozenset for O(1) punctuation membership testing
+    punctuations_set: frozenset = frozenset(punctuations)
     letters: str = "অআইঈউঊঋএঐওঔকখগঘঙচছজঝঞটঠডঢণতথদধনপফবভমযরলশষসহড়ঢ়য়ৎংঃঁ"
     digits: str = "০১২৩৪৫৬৭৮৯"
     vowels: str = "া ি ী ু ৃ ে ৈ ো ৌ"
     stopwords: List[str] = bengali_stopwords
+    # Precomputed set for O(1) membership testing (2x faster than list lookup)
+    stopwords_set: Set[str] = frozenset(bengali_stopwords)
 

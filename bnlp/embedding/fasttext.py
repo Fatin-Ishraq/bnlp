@@ -34,19 +34,15 @@ class BengaliFasttext:
         Args:
             vector_name (str): name of the output vector with extension
         """
-        output_vector = open(vector_name, "w")
-
         words = self.model.get_words()
         vocab_len = str(len(words))
         dimension = str(self.model.get_dimension())
-        output_vector.write(vocab_len + " " + dimension + "\n")
-        for w in words:
-            v = self.model.get_word_vector(w)
-            vstr = ""
-            for vi in v:
-                vstr += " " + str(vi)
-            output_vector.write(w + vstr + "\n")
-        output_vector.close()
+        with open(vector_name, "w") as output_vector:
+            output_vector.write(vocab_len + " " + dimension + "\n")
+            for w in words:
+                v = self.model.get_word_vector(w)
+                vstr = " " + " ".join(str(vi) for vi in v)
+                output_vector.write(w + vstr + "\n")
 
 class FasttextTrainer:
     def train(

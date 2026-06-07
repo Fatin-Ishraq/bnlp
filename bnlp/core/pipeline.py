@@ -193,7 +193,8 @@ class Pipeline:
         """
         current = input_data
         steps_executed = []
-        intermediate_results = {}
+        # Only allocate intermediate_results dict when actually needed
+        intermediate_results = {} if return_details else None
 
         for step in self._steps:
             if not step.enabled:
@@ -202,7 +203,8 @@ class Pipeline:
             try:
                 current = step.processor(current)
                 steps_executed.append(step.name)
-                intermediate_results[step.name] = current
+                if intermediate_results is not None:
+                    intermediate_results[step.name] = current
             except Exception as e:
                 if stop_on_error:
                     from bnlp.core.exceptions import PipelineError
@@ -211,7 +213,8 @@ class Pipeline:
                         reason=str(e),
                     ) from e
                 # Continue with previous value if not stopping on error
-                intermediate_results[step.name] = f"Error: {e}"
+                if intermediate_results is not None:
+                    intermediate_results[step.name] = f"Error: {e}"
 
         if return_details:
             return PipelineResult(

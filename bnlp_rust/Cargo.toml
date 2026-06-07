@@ -1,0 +1,19 @@
+[package]
+name = "bnlp_rust"
+version = "4.4.1"
+edition = "2021"
+
+[lib]
+name = "bnlp_rust"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }
+unicode-properties = "0.1"
+unicode-normalization = "0.1"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"

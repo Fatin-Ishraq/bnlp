@@ -24,5 +24,6 @@ class CRFTaggerTrainer:
         print(f"F1 Score({average}) is: ")
         print(metrics.flat_f1_score(y_test, y_pred, average=average))
 
-        pickle.dump(model, open(model_name, "wb"))
+        with open(model_name, "wb") as f:
+            pickle.dump(model, f)
         print("Model Saved!")

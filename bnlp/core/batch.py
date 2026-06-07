@@ -8,6 +8,8 @@ from typing import List, Tuple, Callable, Any, Optional, Union
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import numpy as np
 
+from bnlp._rust import USE_RUST as _USE_RUST, bnlp_rust
+
 
 class BatchProcessor:
     """A utility class for batch processing of NLP operations.
@@ -54,23 +56,34 @@ class BatchProcessor:
 
         Returns:
             List of results
+
+        Note:
+            For CPU-bound NLP operations (tokenization, text cleaning, etc.),
+            ThreadPoolExecutor provides no parallelism due to Python's GIL.
+            Use use_multiprocessing=True for true parallelism, or rely on
+            the default sequential processing which is faster than threading
+            for CPU-bound work.
         """
         if not inputs:
             return []
 
-        # For small batches, use simple loop
-        if len(inputs) <= 2:
-            return [self.func(x) for x in inputs]
-
-        executor_class = (
-            ProcessPoolExecutor if self.use_multiprocessing else ThreadPoolExecutor
-        )
-
-        with executor_class(max_workers=self.max_workers) as executor:
+        # For CPU-bound operations, sequential is faster than ThreadPoolExecutor
+        # due to Python's GIL. Only use parallel execution when explicitly
+        # requested with multiprocessing.
+        if not self.use_multiprocessing:
             if show_progress:
                 try:
                     from tqdm import tqdm
+                    return [self.func(x) for x in tqdm(inputs)]
+                except ImportError:
+                    pass
+            return [self.func(x) for x in inputs]
 
+        # Multiprocessing for true parallel execution
+        with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
+            if show_progress:
+                try:
+                    from tqdm import tqdm
                     results = list(tqdm(executor.map(self.func, inputs), total=len(inputs)))
                 except ImportError:
                     results = list(executor.map(self.func, inputs))
@@ -91,6 +104,9 @@ def tokenize_batch(
 ) -> List[List[str]]:
     """Tokenize multiple texts in batch.
 
+    When the Rust module is available and the tokenizer is a BasicTokenizer,
+    uses the Rust-accelerated tokenize_batch() for maximum throughput.
+
     Args:
         tokenizer: Tokenizer function or callable
         texts: List of texts to tokenize
@@ -99,6 +115,11 @@ def tokenize_batch(
     Returns:
         List of token lists
     """
+    # Use Rust batch API when available for BasicTokenizer
+    if _USE_RUST:
+        from bnlp.tokenizer.basic import BasicTokenizer
+        if isinstance(tokenizer, BasicTokenizer):
+            return bnlp_rust.tokenize_batch(texts)
     processor = BatchProcessor(tokenizer, max_workers=max_workers)
     return processor.process(texts)
 
@@ -148,6 +169,9 @@ def clean_batch(
     max_workers: Optional[int] = None,
 ) -> List[str]:
     """Clean multiple texts in batch.
+
+    When the Rust module is available and the cleaner is a CleanText instance,
+    uses the Rust-accelerated remove_punctuations_batch() where applicable.
 
     Args:
         cleaner: Text cleaning function
